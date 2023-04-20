@@ -12,7 +12,7 @@ function ServiceCheck {
 
     # Get the services from the remote computer
     $services = Invoke-Command -ComputerName $ComputerName -ScriptBlock {
-        $services=Get-Service | Select-Object $columns
+        Get-Service | Select-Object $columns
     }
 
     # Compare the reference and services
@@ -42,5 +42,5 @@ function ServiceCheck {
         [PSCustomObject]$props
     }
 
-    $output|select Name, startType, DisplayName, ChangedProperty
+    $output|select Name, startType, ChangedProperty, @{l="ServerName";e={"$computername"}}, @{l="status";e={"Failed"}}
 }
