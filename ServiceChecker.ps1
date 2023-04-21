@@ -1,19 +1,39 @@
-function ServiceCheck {
+function ReportMaker {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$ComputerName
+        [string]$ComputerName,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("Services","Roles","Agents")]
+        [string]$test
     )
 
+
     #reference CSV file
-    $reference = Import-Csv .\References\services.csv
+    $reference = Import-Csv ".\References\$test.csv"
+
+
+    $Scripts = @{
+    Roles= { Get-WindowsFeature | Select Name,Installed }
+    Services = { Get-Service | Select Name, @{Name='StartType';Expression={
+        switch ($_.StartType) {'Automatic' { 'Automatic' }
+                            'Disabled' { 'Disabled' }
+                            'Manual' { 'Manual' }}}}}
+    Hostname={Hostname}
+    }
+
+    $ValidateColumn = @{
+    Roles= "Installed"
+    Services = "StartType"
+    Hostname="Hostname"
+    }
 
     # Get the columns from the reference CSV file
     $columns = $reference[0].PSObject.Properties.Name
-    $credentials=Get-Credential
+    write-host "$columns"
+    #$credentials=Get-Credential
     # Get the services from the remote computer
-    $result = Invoke-Command -ComputerName $ComputerName -Credential $credentials -ScriptBlock {
-        Get-Service | Select-Object $columns
-    }
+    $result = Invoke-Command -ComputerName $ComputerName -ScriptBlock $Scripts.$test
 
     # Compare the reference and services
     $Compared = Compare-Object $reference $result -Property $columns -IncludeEqual
@@ -54,8 +74,9 @@ function ServiceCheck {
                 $props[$column] = $row.$column
             }
 
+            #$col=$ValidateColumn[$test]
             #add the differencing column from result
-            $props.Result=$result_row.StartType 
+            $props.Result=$result_row.($ValidateColumn[$test])
             
             #add some default additional columns
             $props.Status = $status
@@ -77,18 +98,24 @@ function ServiceCheck {
             }#>
         }
     }
-    $Html= $processed|select Server, Name, StartType, Result,@{l="Status";e={$_.HTML_Status}}, @{l="Verbose";e={$_.HTML_Verbose}} |sort Name|ConvertTo-Html
+    #$processed contains all the objects
+    $Html= $processed|select Server, Name, $ValidateColumn.$test, Result,@{l="Status";e={$_.HTML_Status}}, @{l="Verbose";e={$_.HTML_Verbose}} |sort Name|ConvertTo-Html
+    $failed=($processed|where status -eq "Failed").count
+    $passed=($processed|where status -eq "passed").count
     #$processed|select Name, changed
     $styledHTML=@"
     <!DOCTYPE html>
     <html>
     <head>
+    <title>$test - $computername</title>
     <style>
     table {
       font-family: Arial, Helvetica, sans-serif;
       border-collapse: collapse;
       width: 100%;
     }
+
+    p {text-align: center;}
     
     td, th {
       border: 1px solid #ddd;
@@ -109,16 +136,17 @@ function ServiceCheck {
     </style>
     </head>
     <body>
+    <p>Report last ran at $(get-date) <b>$failed</b> Failed out of <b>$($processed.count)</b> <br/></p>
     $Html
     </body>
     </html>
 "@
     $decoded=[System.Net.WebUtility]::HtmlDecode($StyledHTML)
 
-    $decoded|Out-File .\a.html
+    $decoded|Out-File ".\$test - $computername.html"
     #$output
     #$result|select Name, startType, sideIndicator, @{l="ServerName";e={"$computername"}} | format-table
 
 }
 
-ServiceCheck
+#ReportMaker
