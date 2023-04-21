@@ -9,11 +9,11 @@ function ServiceCheck {
 
     # Get the columns from the reference CSV file
     $columns = $reference[0].PSObject.Properties.Name
-    #$credentials=get-
+    $credentials=Get-Credential
     # Get the services from the remote computer
-    #$services = Invoke-Command -ComputerName $ComputerName -ScriptBlock {
-        $result=Get-Service | Select-Object $columns
-    #}
+    $result = Invoke-Command -ComputerName $ComputerName -Credential $credentials -ScriptBlock {
+        Get-Service | Select-Object $columns
+    }
 
     # Compare the reference and services
     $Compared = Compare-Object $reference $services -Property $columns -IncludeEqual
