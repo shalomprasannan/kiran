@@ -16,7 +16,7 @@ function ServiceCheck {
     }
 
     # Compare the reference and services
-    $Compared = Compare-Object $reference $services -Property $columns -IncludeEqual
+    $Compared = Compare-Object $reference $result -Property $columns -IncludeEqual
     write-host "ran"
     $processed=foreach($row in $compared){
         #looping only on the equal and reference data == & <=
