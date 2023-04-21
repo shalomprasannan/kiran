@@ -78,7 +78,7 @@ function ServiceCheck {
         }
     }
     $Html= $processed|select Server, Name, StartType, Result,@{l="Status";e={$_.HTML_Status}}, @{l="Verbose";e={$_.HTML_Verbose}} |sort Name|ConvertTo-Html
-    $processed|select Name, changed
+    #$processed|select Name, changed
     $styledHTML=@"
     <!DOCTYPE html>
     <html>
@@ -113,7 +113,7 @@ function ServiceCheck {
     </body>
     </html>
 "@
-    $decoded=[System.Web.HttpUtility]::HtmlDecode($StyledHTML)
+    $decoded=[System.Net.WebUtility]::HtmlDecode($StyledHTML)
 
     $decoded|Out-File .\a.html
     #$output
