@@ -7,12 +7,14 @@ function GetRemoteRegistry {
     )
     $keyValue = Invoke-Command -Session $Session -ScriptBlock {
         param($path, $key)
-        Get-ItemProperty -Path $path -Name $key | Select-Object -ExpandProperty $key
+        Get-ItemProperty -Path $path -Name $key -ErrorAction SilentlyContinue| Select-Object -ExpandProperty $key
     } -ArgumentList $RegistryPath, $KeyName
-    [PSCustomObject]@{
-        RegistryPath = $RegistryPath
-        KeyName = $KeyName
-        Value = $keyValue
+    if($keyvalue){
+        [PSCustomObject]@{
+            Path = $RegistryPath
+            Key = $KeyName
+            Value = $keyValue
+        }
     }
 }
 
@@ -109,8 +111,8 @@ function HTMLMaker{
 
     #aggregating the status
     $counts=$object|group-object status
-    $passed=$counts[0].count
-    $failed=$counts[1].count
+    $passed=($object|group-object status|where Name -EQ "Passed").count
+    $failed=($object|group-object status|where Name -EQ "Failed").count
     $total=$passed+$failed
 
     $fragment = $object|select $($columns+$HTMLColumns)|convertto-HTML -fragment
@@ -248,7 +250,7 @@ function All-ServerCheck{
     $RegistryTest={
     $global:Registry=getRegistry
     $global:RefRegistry=Import-csv "$SourceFolder\Registry.csv"
-    $RegistryResult=result-object -reference $RefRegistry -result $Registry -columns Key,value|Sort-Object Path,Key
+    $RegistryResult=result-object -reference $RefRegistry -result $Registry -columns Path,Key,value|Sort-Object Path,Key
     $RegistryResult|select @($RegistryColumns + $csvColumns)|export-csv -NoTypeInformation "$outputFolder\Registry.csv"
     HTMLMaker $RegistryResult $registryColumns $test |out-file "$outputfolder\Registry.html"
     }
